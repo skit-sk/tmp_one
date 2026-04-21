@@ -21,10 +21,14 @@ def create_pnl_chart(
     if not points:
         return ""
     
-    times = [p['time'] for p in points]
-    pnl_values = [p['pnl'] for p in points]
-    drawdown_values = [p['drawdown'] for p in points]
-    equity_values = [p['equity'] for p in points]
+    try:
+        times = [p['time'] for p in points]
+        pnl_values = [p['pnl'] for p in points]
+        drawdown_values = [p['drawdown'] for p in points]
+        equity_values = [p['equity'] for p in points]
+    except (KeyError, TypeError) as e:
+        print(f"Error extracting P&L data: {e}")
+        return ""
     
     fig = go.Figure()
     
@@ -56,6 +60,10 @@ def create_pnl_chart(
         yaxis='y2',
     ))
     
+    # Calculate range safely
+    max_dd = max(drawdown_values) if drawdown_values else 0
+    dd_range = [0, max_dd * 1.2] if max_dd > 0 else [0, 10]
+    
     # Update layout with dual y-axis
     fig.update_layout(
         title=dict(
@@ -82,7 +90,7 @@ def create_pnl_chart(
             title='Drawdown %',
             overlaying='y',
             side='right',
-            range=[0, max(drawdown_values) * 1.2] if drawdown_values else [0, 10],
+            range=dd_range,
             showgrid=False,
             titlefont=dict(color='#f59e0b'),
             tickfont=dict(color='#f59e0b'),
