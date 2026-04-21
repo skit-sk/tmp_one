@@ -4,23 +4,21 @@ from flask import Flask, render_template, jsonify, request
 from data import MarketDataFetcher, generate_test_data, detect_patterns, pattern_to_dict
 from data.generator import generate_test_pnl
 from charts import create_candlestick_chart, create_pnl_chart, create_combined_chart
+from charts.svg_charts import generate_svg_candlestick, generate_svg_pnl
 
 
 app = Flask(__name__)
 
-# Initialize data fetcher
 fetcher = MarketDataFetcher()
 
 
 @app.route('/')
 def index():
-    """Main dashboard page."""
     return render_template('index.html')
 
 
 @app.route('/api/symbols')
 def api_symbols():
-    """Get available trading symbols."""
     try:
         symbols = fetcher.get_symbols()
         return jsonify(symbols)
@@ -30,41 +28,30 @@ def api_symbols():
 
 @app.route('/api/candles')
 def api_candles():
-    """Get candlestick data."""
     symbol = request.args.get('symbol', 'BTCUSDT')
     timeframe = request.args.get('timeframe', '1d')
     limit = int(request.args.get('limit', 90))
     
     try:
         candles = fetcher.fetch_candles(symbol, timeframe, limit)
-        
-        # Fallback to test data if API fails
         if not candles:
             candles = generate_test_data(symbol, limit)
-            
         return jsonify(candles)
     except Exception as e:
-        print(f"Error fetching candles: {e}")
-        # Return test data on error
         candles = generate_test_data(symbol, limit)
         return jsonify(candles)
 
 
 @app.route('/api/patterns')
 def api_patterns():
-    """Get detected patterns."""
     symbol = request.args.get('symbol', 'BTCUSDT')
-    
     try:
         candles = fetcher.fetch_candles(symbol, '1d', 90)
-        
         if not candles:
             candles = generate_test_data(symbol, 90)
-        
         patterns = detect_patterns(candles)
         return jsonify([pattern_to_dict(p) for p in patterns])
     except Exception as e:
-        print(f"Error detecting patterns: {e}")
         candles = generate_test_data(symbol, 90)
         patterns = detect_patterns(candles)
         return jsonify([pattern_to_dict(p) for p in patterns])
@@ -72,19 +59,14 @@ def api_patterns():
 
 @app.route('/api/pnl')
 def api_pnl():
-    """Get P&L data."""
     symbol = request.args.get('symbol', 'BTCUSDT')
-    
     try:
         candles = fetcher.fetch_candles(symbol, '1d', 90)
-        
         if not candles:
             candles = generate_test_data(symbol, 90)
-        
         pnl_data = generate_test_pnl(candles)
         return jsonify(pnl_data)
     except Exception as e:
-        print(f"Error generating P&L: {e}")
         candles = generate_test_data(symbol, 90)
         pnl_data = generate_test_pnl(candles)
         return jsonify(pnl_data)
@@ -92,22 +74,16 @@ def api_pnl():
 
 @app.route('/api/summary')
 def api_summary():
-    """Get trading summary."""
     symbol = request.args.get('symbol', 'BTCUSDT')
-    
     try:
         candles = fetcher.fetch_candles(symbol, '1d', 90)
-        
         if not candles:
             candles = generate_test_data(symbol, 90)
-        
         pnl_data = generate_test_pnl(candles)
         last = candles[-1]
         prev = candles[-2] if len(candles) > 1 else last
-        
         price_change = last['close'] - prev['close']
         price_change_pct = (price_change / prev['close'] * 100) if prev['close'] != 0 else 0
-        
         return jsonify({
             'symbol': symbol,
             'currentPrice': last['close'],
@@ -120,11 +96,9 @@ def api_summary():
             'maxDrawdown': pnl_data['maxDrawdown'],
         })
     except Exception as e:
-        print(f"Error generating summary: {e}")
         candles = generate_test_data(symbol, 90)
         pnl_data = generate_test_pnl(candles)
         last = candles[-1]
-        
         return jsonify({
             'symbol': symbol,
             'currentPrice': last['close'],
@@ -140,21 +114,16 @@ def api_summary():
 
 @app.route('/api/chart/candlestick')
 def api_chart_candlestick():
-    """Get candlestick chart HTML."""
     symbol = request.args.get('symbol', 'BTCUSDT')
-    
     try:
         candles = fetcher.fetch_candles(symbol, '1d', 90)
         if not candles:
             candles = generate_test_data(symbol, 90)
-        
         patterns = detect_patterns(candles)
         patterns_dicts = [pattern_to_dict(p) for p in patterns]
-        
         chart_html = create_candlestick_chart(candles, patterns_dicts)
         return jsonify({'chart': chart_html})
     except Exception as e:
-        print(f"Error creating chart: {e}")
         candles = generate_test_data(symbol, 90)
         patterns = detect_patterns(candles)
         patterns_dicts = [pattern_to_dict(p) for p in patterns]
@@ -164,20 +133,15 @@ def api_chart_candlestick():
 
 @app.route('/api/chart/pnl')
 def api_chart_pnl():
-    """Get P&L chart HTML."""
     symbol = request.args.get('symbol', 'BTCUSDT')
-    
     try:
         candles = fetcher.fetch_candles(symbol, '1d', 90)
         if not candles:
             candles = generate_test_data(symbol, 90)
-        
         pnl_data = generate_test_pnl(candles)
-        
         chart_html = create_pnl_chart(pnl_data['points'])
         return jsonify({'chart': chart_html})
     except Exception as e:
-        print(f"Error creating P&L chart: {e}")
         candles = generate_test_data(symbol, 90)
         pnl_data = generate_test_pnl(candles)
         chart_html = create_pnl_chart(pnl_data['points'])
@@ -186,28 +150,59 @@ def api_chart_pnl():
 
 @app.route('/api/chart/combined')
 def api_chart_combined():
-    """Get combined chart HTML."""
     symbol = request.args.get('symbol', 'BTCUSDT')
-    
     try:
         candles = fetcher.fetch_candles(symbol, '1d', 90)
         if not candles:
             candles = generate_test_data(symbol, 90)
-        
         patterns = detect_patterns(candles)
         patterns_dicts = [pattern_to_dict(p) for p in patterns]
         pnl_data = generate_test_pnl(candles)
-        
         chart_html = create_combined_chart(candles, patterns_dicts, pnl_data['points'])
         return jsonify({'chart': chart_html})
     except Exception as e:
-        print(f"Error creating combined chart: {e}")
         candles = generate_test_data(symbol, 90)
         patterns = detect_patterns(candles)
         patterns_dicts = [pattern_to_dict(p) for p in patterns]
         pnl_data = generate_test_pnl(candles)
         chart_html = create_combined_chart(candles, patterns_dicts, pnl_data['points'])
         return jsonify({'chart': chart_html})
+
+
+@app.route('/api/chart/svg/candlestick')
+def api_chart_svg_candlestick():
+    symbol = request.args.get('symbol', 'BTCUSDT')
+    try:
+        candles = fetcher.fetch_candles(symbol, '1d', 90)
+        if not candles:
+            candles = generate_test_data(symbol, 90)
+        patterns = detect_patterns(candles)
+        pattern_times = [p.time for p in patterns]
+        svg = generate_svg_candlestick(candles, pattern_times=pattern_times)
+        return jsonify({'svg': svg})
+    except Exception as e:
+        candles = generate_test_data(symbol, 90)
+        patterns = detect_patterns(candles)
+        pattern_times = [p.time for p in patterns]
+        svg = generate_svg_candlestick(candles, pattern_times=pattern_times)
+        return jsonify({'svg': svg})
+
+
+@app.route('/api/chart/svg/pnl')
+def api_chart_svg_pnl():
+    symbol = request.args.get('symbol', 'BTCUSDT')
+    try:
+        candles = fetcher.fetch_candles(symbol, '1d', 90)
+        if not candles:
+            candles = generate_test_data(symbol, 90)
+        pnl_data = generate_test_pnl(candles)
+        svg = generate_svg_pnl(pnl_data['points'])
+        return jsonify({'svg': svg})
+    except Exception as e:
+        candles = generate_test_data(symbol, 90)
+        pnl_data = generate_test_pnl(candles)
+        svg = generate_svg_pnl(pnl_data['points'])
+        return jsonify({'svg': svg})
 
 
 if __name__ == '__main__':
