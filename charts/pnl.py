@@ -83,7 +83,7 @@ def create_pnl_chart(
             showgrid=True,
             gridcolor='rgba(255,255,255,0.1)',
             tickformat='$,.0f',
-            titlefont=dict(color='#3b82f6'),
+            title_font=dict(color='#3b82f6'),
             tickfont=dict(color='#3b82f6'),
         ),
         yaxis2=dict(
@@ -92,7 +92,7 @@ def create_pnl_chart(
             side='right',
             range=dd_range,
             showgrid=False,
-            titlefont=dict(color='#f59e0b'),
+            title_font=dict(color='#f59e0b'),
             tickfont=dict(color='#f59e0b'),
             tickformat='.1f',
         ),
