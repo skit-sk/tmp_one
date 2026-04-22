@@ -4,7 +4,7 @@ from flask import Flask, render_template, jsonify, request
 from data import MarketDataFetcher, generate_test_data, detect_patterns, pattern_to_dict
 from data.generator import generate_test_pnl
 from charts import create_candlestick_chart, create_pnl_chart, create_combined_chart
-from charts.svg_charts import generate_svg_candlestick, generate_svg_pnl
+from charts.svg_charts import generate_svg_candlestick, generate_svg_pnl, generate_svg_combined
 
 
 app = Flask(__name__)
@@ -14,7 +14,17 @@ fetcher = MarketDataFetcher()
 
 @app.route('/')
 def index():
+    return render_template('alt.html')
+
+
+@app.route('/plotly')
+def plotly_page():
     return render_template('index.html')
+
+
+@app.route('/svg')
+def svg_page():
+    return render_template('alt.html')
 
 
 @app.route('/api/symbols')
@@ -178,13 +188,15 @@ def api_chart_svg_candlestick():
             candles = generate_test_data(symbol, 90)
         patterns = detect_patterns(candles)
         pattern_times = [p.time for p in patterns]
-        svg = generate_svg_candlestick(candles, pattern_times=pattern_times)
+        patterns_dicts = [pattern_to_dict(p) for p in patterns]
+        svg = generate_svg_candlestick(candles, pattern_times=pattern_times, patterns=patterns_dicts)
         return jsonify({'svg': svg})
     except Exception as e:
         candles = generate_test_data(symbol, 90)
         patterns = detect_patterns(candles)
         pattern_times = [p.time for p in patterns]
-        svg = generate_svg_candlestick(candles, pattern_times=pattern_times)
+        patterns_dicts = [pattern_to_dict(p) for p in patterns]
+        svg = generate_svg_candlestick(candles, pattern_times=pattern_times, patterns=patterns_dicts)
         return jsonify({'svg': svg})
 
 
@@ -202,6 +214,29 @@ def api_chart_svg_pnl():
         candles = generate_test_data(symbol, 90)
         pnl_data = generate_test_pnl(candles)
         svg = generate_svg_pnl(pnl_data['points'])
+        return jsonify({'svg': svg})
+
+
+@app.route('/api/chart/svg/combined')
+def api_chart_svg_combined():
+    symbol = request.args.get('symbol', 'BTCUSDT')
+    try:
+        candles = fetcher.fetch_candles(symbol, '1d', 90)
+        if not candles:
+            candles = generate_test_data(symbol, 90)
+        patterns = detect_patterns(candles)
+        pattern_times = [p.time for p in patterns]
+        patterns_dicts = [pattern_to_dict(p) for p in patterns]
+        pnl_data = generate_test_pnl(candles)
+        svg = generate_svg_combined(candles, pnl_data['points'], pattern_times, patterns_dicts)
+        return jsonify({'svg': svg})
+    except Exception as e:
+        candles = generate_test_data(symbol, 90)
+        patterns = detect_patterns(candles)
+        pattern_times = [p.time for p in patterns]
+        patterns_dicts = [pattern_to_dict(p) for p in patterns]
+        pnl_data = generate_test_pnl(candles)
+        svg = generate_svg_combined(candles, pnl_data['points'], pattern_times, patterns_dicts)
         return jsonify({'svg': svg})
 
 
